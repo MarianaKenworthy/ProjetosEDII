@@ -1,0 +1,122 @@
+#include <stdio.h> 
+#include <stdlib.h> 
+#include <string.h>
+
+/* to-do
+- receber codigo de remoção por arquivo
+- tirar sizeof() da remoção
+-compactação
+- entrada dos casos de teste (numero 4)
+*/
+
+typedef struct segurado{
+    char codigo[4];
+    char nome[50];
+    char seguradora[50];
+    char tipo[30];
+} seg;
+
+struct pilha{
+    int info;
+    struct pilha *prox;
+};
+
+void push(int x, struct pilha **topo){
+    struct pilha *aux;
+    aux = (struct pilha *)malloc(sizeof(struct pilha));
+    aux->info = x;
+    aux->prox = *topo;
+    *topo = aux;
+}
+
+void pop(struct pilha **p, int *x){
+    struct pilha *aux;
+    if(*p){
+        *x = (*p)->info;
+        aux = *p;
+        *p = aux->prox;
+        free(aux);
+    }else{
+        printf("vazia");
+    }
+}
+
+void montaCampos (FILE* input, FILE*output){
+    char tam;
+    seg segurado; 
+    fread(&segurado, sizeof(seg), 1, input);
+    char registro[135];
+    sprintf(registro, "%s#%s#%s#%s#", segurado.codigo, segurado.nome, segurado.seguradora, segurado.tipo);
+    tam = strlen(registro);
+
+    fwrite(&tam, sizeof(char), 1, output);
+    fwrite(&registro, sizeof(char), tam, output);
+
+}
+
+void removeReg (FILE* output, struct pilha **offset){
+    printf("Qual registro deseja remover?");
+    int escolhido;
+    scanf("%d", &escolhido);
+    seg seguradora;
+    char aux[2];
+    char asterisco = '*';
+    int i;
+    fseek(output, escolhido-1 * sizeof(seg), 0);
+
+    /*  Esse fread pra ver se já tá removido n é exatamente correto, na hora vai ficar tudo embaralhado
+     *  e n vai ser só avançar x vezes, tem q olhar a lista de ordem
+     *  vai ficar por exemplo:  1 5 2 4 3 no arquivo, aí falta a lista de ordem dos registros, mudaria tudo
+     */
+    while ((fread(&aux, 1, 2, output)) == 2){
+        if (aux[2] == '*'){
+            printf("Esse registro já foi removido");
+        }else{
+            fwrite(&asterisco, sizeof(char), 1, output);
+            push(escolhido, offset);
+        }
+    }
+
+}
+
+
+
+int main () {
+    FILE* output = fopen("cadastro.dat", "r+b");
+    if (!output)
+    output = fopen("cadastro.dat", "w+b");
+    FILE* input = fopen("insere.bin", "rb");
+    
+    struct pilha *offset = NULL;
+
+    char escolha;
+    do {
+    printf("O que deseja fazer?\n\n1- Inserir\n2- Remover\n3- Compactar\n4- Teste\n5- Sair\n");
+    scanf(" %c", &escolha);
+
+        switch(escolha){
+            case '1': {
+                
+                montaCampos(input, output);
+
+            break;
+            }
+
+            case '2':
+
+                removeReg(output, &offset);
+
+            break;
+
+            case '3':
+
+            break;
+
+            case '4':
+
+            break;
+        }
+
+    } while(escolha != '5');
+
+}
