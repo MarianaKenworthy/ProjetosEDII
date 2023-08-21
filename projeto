@@ -3,9 +3,9 @@
 #include <string.h>
 
 /* to-do
-- receber codigo de remoção por arquivo
-- tirar sizeof() da remoção
--compactação
+- receber codigo de remoção por arquivo (mauri)
+- tirar sizeof() da remoção (eu mesmo)
+- compactação
 - entrada dos casos de teste (numero 4)
 */
 
@@ -21,7 +21,7 @@ struct pilha{
     struct pilha *prox;
 };
 
-void push(int x, struct pilha **topo){
+void push (int x, struct pilha **topo){
     struct pilha *aux;
     aux = (struct pilha *)malloc(sizeof(struct pilha));
     aux->info = x;
@@ -29,7 +29,7 @@ void push(int x, struct pilha **topo){
     *topo = aux;
 }
 
-void pop(struct pilha **p, int *x){
+void pop (struct pilha **p, int *x){
     struct pilha *aux;
     if(*p){
         *x = (*p)->info;
@@ -51,7 +51,6 @@ void montaCampos (FILE* input, FILE*output){
 
     fwrite(&tam, sizeof(char), 1, output);
     fwrite(&registro, sizeof(char), tam, output);
-
 }
 
 void removeReg (FILE* output, struct pilha **offset){
@@ -68,9 +67,9 @@ void removeReg (FILE* output, struct pilha **offset){
      *  e n vai ser só avançar x vezes, tem q olhar a lista de ordem
      *  vai ficar por exemplo:  1 5 2 4 3 no arquivo, aí falta a lista de ordem dos registros, mudaria tudo
      */
-    while ((fread(&aux, 1, 2, output)) == 2){
+    if ((fread(&aux, 1, 2, output)) == 2){
         if (aux[2] == '*'){
-            printf("Esse registro já foi removido");
+            printf("\nEsse registro já foi removido\n");
         }else{
             fwrite(&asterisco, sizeof(char), 1, output);
             push(escolhido, offset);
@@ -78,8 +77,6 @@ void removeReg (FILE* output, struct pilha **offset){
     }
 
 }
-
-
 
 int main () {
     FILE* output = fopen("cadastro.dat", "r+b");
