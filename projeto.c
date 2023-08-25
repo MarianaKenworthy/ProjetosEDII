@@ -3,10 +3,11 @@
 #include <string.h>
 
 /* to-do
-- receber codigo de remoção por arquivo (mauri)
 - tirar sizeof() da remoção (eu mesmo)
 - compactação
 - entrada dos casos de teste (numero 4)
+- ver um jeito de a remoção abrir o output sempre no começo do arquivo pra procurar direito
+- salvar tudo em arquivo pra se fechar não ter problema
 */
 
 typedef struct segurado{
@@ -53,20 +54,33 @@ void montaCampos (FILE* input, FILE*output){
     fwrite(&registro, sizeof(char), tam, output);
 }
 
-void removeReg (FILE* output, struct pilha **offset){
-    printf("Qual registro deseja remover?");
-    int escolhido;
-    scanf("%d", &escolhido);
-    seg seguradora;
-    char aux[2];
+void removeReg (FILE* input, FILE* output, struct pilha **offset){
+    char codigo[4], aux[4];
+    fread(codigo, sizeof(char), 4, input); //le o codigo a ser removido
+
+
+    fseek(output, 0, 0);// garante que ele ta no começo, pode mudar essa parte de lugar depois
+    fread(aux, sizeof(char), 4, output);
+    fseek(output, 0, 0);
+
+    while((codigo[0]!=aux[1])||(codigo[1]!=aux[2])||(codigo[2]!=aux[3])){
+        fseek(output, aux[0]+1, SEEK_CUR);
+        if(fread(aux, sizeof(char), 4, output) == 0){
+            printf("codigo nao encontrado\n");
+            return;
+        }
+
+    }
+    
+   /* seg seguradora;
+    //char aux[2];
     char asterisco = '*';
     int i;
-    fseek(output, escolhido-1 * sizeof(seg), 0);
 
     /*  Esse fread pra ver se já tá removido n é exatamente correto, na hora vai ficar tudo embaralhado
      *  e n vai ser só avançar x vezes, tem q olhar a lista de ordem
      *  vai ficar por exemplo:  1 5 2 4 3 no arquivo, aí falta a lista de ordem dos registros, mudaria tudo
-     */
+     
     if ((fread(&aux, 1, 2, output)) == 2){
         if (aux[2] == '*'){
             printf("\nEsse registro já foi removido\n");
@@ -75,15 +89,46 @@ void removeReg (FILE* output, struct pilha **offset){
             push(escolhido, offset);
         }
     }
-
+*/
 }
+
+void compacta (FILE* output){ //precisa lembrar de zerar a pilha aqui mas como ainda não tem pilha nao fiz tambem precisar mudar o tamanho dos registros naquele primeiro bit já que encurta eles
+    fseek(output, 0, 0);
+    FILE* output2 = output;
+    int contador = 0, i;
+    char ch, proximo, leitura, buffer[sizeof(seg)];
+
+    while(fread(&ch, sizeof(char), 1, output)!=0){
+        if(contador == 0)
+            proximo = ch;
+
+        if(ch = '#')
+            contador++;
+
+        if(contador==4){ //eu desenhei essa parte se tu quiser
+            fseek(output2, proximo, 1);
+            fread(&leitura, sizeof(char), 1, output2);
+            fread(buffer, sizeof(char), leitura, output2);
+
+            fwrite(&leitura, sizeof(char), 1, output);
+            fwrite(buffer, sizeof(char), leitura, output);
+           // fseek(output, tamanho atualizado, SEEK_CUR);
+            contador = 0;
+        }
+
+    }
+}
+
 
 int main () {
     FILE* output = fopen("cadastro.dat", "r+b");
     if (!output)
     output = fopen("cadastro.dat", "w+b");
-    FILE* input = fopen("insere.bin", "rb");
+
+    FILE* input1 = fopen("insere.bin", "rb");
+    FILE* input2 = fopen("remove.bin", "rb");
     
+
     struct pilha *offset = NULL;
 
     char escolha;
@@ -94,17 +139,17 @@ int main () {
         switch(escolha){
             case '1': {
                 
-                montaCampos(input, output);
+                montaCampos(input1, output);
 
             break;
             }
 
-            case '2':
-
-                removeReg(output, &offset);
+            case '2':{
+                
+                removeReg(input2, output, &offset);
 
             break;
-
+            }
             case '3':
 
             break;
@@ -115,5 +160,8 @@ int main () {
         }
 
     } while(escolha != '5');
-
+    
+    fclose(input1);
+    fclose(input2);
+    fclose(output);
 }
