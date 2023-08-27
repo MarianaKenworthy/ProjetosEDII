@@ -3,11 +3,12 @@
 #include <string.h>
 
 /* to-do
-- tirar sizeof() da remoção (eu mesmo)
-- compactação
-- entrada dos casos de teste (numero 4)
-- ver um jeito de a remoção abrir o output sempre no começo do arquivo pra procurar direito
-- salvar tudo em arquivo pra se fechar não ter problema
+- arrumar a pilha de remoção (no arquivo cadastro.dat) (eu mesmo)
+- arrumar remoção (eu mesmo)
+- onde parou no arquivo cadastro, insere, e remove
+- first-fit do insere
+- compactação (quando tudo estiver pronto)
+- deixar bonitinho (🏳‍🌈)
 */
 
 typedef struct segurado{
@@ -89,29 +90,11 @@ void removeReg (FILE* input, FILE* output, struct pilha **offset, FILE* pilha){
             fseek(pilha, 0, 0);
         }
     }
-
-    /*  
-        seg seguradora;
-        //char aux[2];
-        char asterisco = '*';
-        int i;
-
-        /*  Esse fread pra ver se já tá removido n é exatamente correto, na hora vai ficar tudo embaralhado
-        *  e n vai ser só avançar x vezes, tem q olhar a lista de ordem
-        *  vai ficar por exemplo:  1 5 2 4 3 no arquivo, aí falta a lista de ordem dos registros, mudaria tudo
-        
-        if ((fread(&aux, 1, 2, output)) == 2){
-            if (aux[2] == '*'){
-                printf("\nEsse registro já foi removido\n");
-            }else{
-                fwrite(&asterisco, sizeof(char), 1, output);
-                push(escolhido, offset);
-            }
-        }
-    */
 }
 
-void compacta (FILE* output){ //precisa lembrar de zerar a pilha aqui mas como ainda não tem pilha nao fiz tambem precisar mudar o tamanho dos registros naquele primeiro bit já que encurta eles
+void compacta (FILE* output){
+    //precisa lembrar de zerar a pilha aqui mas como ainda não tem pilha nao fiz tambem precisar mudar o tamanho dos registros naquele primeiro bit
+    //já que encurta eles
     fseek(output, 0, 0);
     FILE* output2 = output;
     int contador = 0, i;
@@ -156,7 +139,7 @@ int main () {
 
     char escolha;
     do {
-    printf("O que deseja fazer?\n\n1- Inserir\n2- Remover\n3- Compactar\n4- Teste\n5- Sair\n");
+    printf("O que deseja fazer?\n\n1- Inserir\n2- Remover\n3- Compactar\n4- Sair\n");
     scanf(" %c", &escolha);
 
         switch(escolha){
@@ -177,12 +160,9 @@ int main () {
 
             break;
 
-            case '4':
-
-            break;
         }
 
-    } while(escolha != '5');
+    } while(escolha != '4');
     
     fclose(input1);
     fclose(input2);
