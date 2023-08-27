@@ -54,42 +54,61 @@ void montaCampos (FILE* input, FILE*output){
     fwrite(&registro, sizeof(char), tam, output);
 }
 
-void removeReg (FILE* input, FILE* output, struct pilha **offset){
-    char codigo[4], aux[4];
+void removeReg (FILE* input, FILE* output, struct pilha **offset, FILE* pilha){
+    char codigo[4], aux[4], verificaRemovido;
     fread(codigo, sizeof(char), 4, input); //le o codigo a ser removido
 
+    int contaDistancia = 0;
 
     fseek(output, 0, 0);// garante que ele ta no começo, pode mudar essa parte de lugar depois
     fread(aux, sizeof(char), 4, output);
     fseek(output, 0, 0);
 
     while((codigo[0]!=aux[1])||(codigo[1]!=aux[2])||(codigo[2]!=aux[3])){
+        contaDistancia += aux[0] + 1;
         fseek(output, aux[0]+1, SEEK_CUR);
         if(fread(aux, sizeof(char), 4, output) == 0){
-            printf("codigo nao encontrado\n");
+            printf("\nCodigo nao encontrado\n");
             return;
         }
-
     }
-    
-   /* seg seguradora;
-    //char aux[2];
-    char asterisco = '*';
-    int i;
-
-    /*  Esse fread pra ver se já tá removido n é exatamente correto, na hora vai ficar tudo embaralhado
-     *  e n vai ser só avançar x vezes, tem q olhar a lista de ordem
-     *  vai ficar por exemplo:  1 5 2 4 3 no arquivo, aí falta a lista de ordem dos registros, mudaria tudo
-     
-    if ((fread(&aux, 1, 2, output)) == 2){
-        if (aux[2] == '*'){
-            printf("\nEsse registro já foi removido\n");
+    //volta e coloca o asterisco: 37001 -> 37*01
+    fseek(output, -3, SEEK_CUR);
+    if ((fread(&verificaRemovido, 1, 1, output)) == 2){
+        if (verificaRemovido == '*'){
+            printf("\nEsse registro ja foi removido\n");
         }else{
-            fwrite(&asterisco, sizeof(char), 1, output);
-            push(escolhido, offset);
+            fwrite('*', sizeof(char), 1, output);
+
+            //coloca no arquivo da pilha de removidos o que acabou de ser removido:
+            //7637#
+            //onde 76 é a distância até o removido (int), 37 é o espaço que foi removido (char) (pra inserir depois nesse lugar) e # é pipeline
+            fwrite(&contaDistancia, sizeof(int), 1, pilha);
+            fwrite(&aux[0]+1, sizeof(char), 1, pilha);
+            fwrite('#', sizeof(char), 1, pilha);
+            fseek(pilha, 0, 0);
         }
     }
-*/
+
+    /*  
+        seg seguradora;
+        //char aux[2];
+        char asterisco = '*';
+        int i;
+
+        /*  Esse fread pra ver se já tá removido n é exatamente correto, na hora vai ficar tudo embaralhado
+        *  e n vai ser só avançar x vezes, tem q olhar a lista de ordem
+        *  vai ficar por exemplo:  1 5 2 4 3 no arquivo, aí falta a lista de ordem dos registros, mudaria tudo
+        
+        if ((fread(&aux, 1, 2, output)) == 2){
+            if (aux[2] == '*'){
+                printf("\nEsse registro já foi removido\n");
+            }else{
+                fwrite(&asterisco, sizeof(char), 1, output);
+                push(escolhido, offset);
+            }
+        }
+    */
 }
 
 void compacta (FILE* output){ //precisa lembrar de zerar a pilha aqui mas como ainda não tem pilha nao fiz tambem precisar mudar o tamanho dos registros naquele primeiro bit já que encurta eles
@@ -125,6 +144,10 @@ int main () {
     if (!output)
     output = fopen("cadastro.dat", "w+b");
 
+    FILE* pilharemocao = fopen("pilha.bin", "r+b");
+    if (!pilharemocao)
+    pilharemocao = fopen("pilha.bin", "w+b");
+
     FILE* input1 = fopen("insere.bin", "rb");
     FILE* input2 = fopen("remove.bin", "rb");
     
@@ -146,7 +169,7 @@ int main () {
 
             case '2':{
                 
-                removeReg(input2, output, &offset);
+                removeReg(input2, output, &offset, pilharemocao);
 
             break;
             }
