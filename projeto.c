@@ -7,19 +7,17 @@
 - Onde parou no arquivo cadastro, insere, e remove;
 - First-fit do insere;
 - Compactação (quando tudo estiver pronto);
-- Deixar bonitinho (🏳‍🌈);
+- Deixar bonitinho (🏳‍🌈) - Ponteiro a mais;
 */
 
-typedef struct segurado
-{
+typedef struct segurado{
     char codigo[4];
     char nome[50];
     char seguradora[50];
     char tipo[30];
 } seg;
 
-void montaCabecalho(FILE *output)
-{
+void montaCabecalho(FILE *output){
     char tam;
     char registro[4];
     sprintf(registro, "**|");
@@ -33,8 +31,7 @@ void montaCabecalho(FILE *output)
     fwrite(&registro, sizeof(char), tam, output);
 }
 
-void montaCampos(FILE *input, FILE *output)
-{
+void montaCampos(FILE *input, FILE *output){
     char tam;
     seg segurado;
     fread(&segurado, sizeof(seg), 1, input);
@@ -46,8 +43,7 @@ void montaCampos(FILE *input, FILE *output)
     fwrite(&registro, sizeof(char), tam, output);
 }
 
-void removeReg(FILE *input, FILE *output)
-{
+void removeReg(FILE *input, FILE *output){
     char codigo[4], aux[4], verificaRemovido;
     fread(codigo, sizeof(char), 4, input); // Lê o codigo a ser removido do remove.bin
 
@@ -57,30 +53,26 @@ void removeReg(FILE *input, FILE *output)
     fread(&aux, sizeof(char), 4, output); // Lê o código em cadastro.dat, para comparar com o remove.bin
 
     fseek(output, 4, 0);
-    bool primeiraRemocao = false;
-    if ((codigo[0] == aux[1]) || (codigo[1] == aux[2]) || (codigo[2] == aux[3]))
-    {
-        primeiraRemocao = true;
+    bool primeiroReg = false;
+    if ((codigo[0] == aux[1]) || (codigo[1] == aux[2]) || (codigo[2] == aux[3])){
+        primeiroReg = true;
         fseek(output, 1, SEEK_CUR);
     }
 
-    while ((codigo[0] != aux[1]) || (codigo[1] != aux[2]) || (codigo[2] != aux[3]))
-    {
+    while ((codigo[0] != aux[1]) || (codigo[1] != aux[2]) || (codigo[2] != aux[3])){
         contaDistancia += aux[0] + 1;
         fseek(output, aux[0] + 1, SEEK_CUR); // Vai para o próximo código em cadastro.dat
-        if (fread(aux, sizeof(char), 4, output) == 0)
-        {
+        if (fread(aux, sizeof(char), 4, output) == 0){
             printf("\nCodigo nao encontrado\n");
             return;
         }
-        else
-        {
+        else{
             if ((codigo[0] != aux[1]) || (codigo[1] != aux[2]) || (codigo[2] != aux[3]))
                 fseek(output, -4, SEEK_CUR);
         }
     }
 
-    if (!primeiraRemocao)
+    if (!primeiroReg)
         fseek(output, -3, SEEK_CUR); // Assim que achar, volta e coloca o asterisco: 37001 -> 37*01
     char asterisco = '*';
     fwrite(&asterisco, sizeof(char), 1, output);
@@ -96,8 +88,7 @@ void removeReg(FILE *input, FILE *output)
     fwrite(&proximo, sizeof(char), 1, output); // Coloca o próximo da pilha, se for asterisco é o último (primeiro que foi colocado)
 }
 
-void compacta(FILE *output)
-{
+void compacta(FILE *output){
     // Precisa lembrar de zerar a pilha aqui mas como ainda não tem pilha não fiz
     // Também precisa mudar o tamanho dos registros naquele primeiro bit já que encurta eles
     fseek(output, 0, 0);
@@ -105,16 +96,14 @@ void compacta(FILE *output)
     int contador = 0, i;
     char ch, proximo, leitura, buffer[sizeof(seg)];
 
-    while (fread(&ch, sizeof(char), 1, output) != 0)
-    {
+    while (fread(&ch, sizeof(char), 1, output) != 0){
         if (contador == 0)
             proximo = ch;
 
         if (ch = '#')
             contador++;
 
-        if (contador == 4)
-        {
+        if (contador == 4){
             fseek(output2, proximo, 1);
             fread(&leitura, sizeof(char), 1, output2);
             fread(buffer, sizeof(char), leitura, output2);
@@ -127,8 +116,7 @@ void compacta(FILE *output)
     }
 }
 
-int main()
-{
+int main(){
     FILE *output = fopen("cadastro.dat", "r+b");
     if (!output)
         output = fopen("cadastro.dat", "w+b");
@@ -138,24 +126,19 @@ int main()
     FILE *input2 = fopen("remove.bin", "rb");
 
     char escolha;
-    do
-    {
+    do{
         printf("\n---------------------------\n\nO que deseja fazer?\n\n1- Inserir\n2- Remover\n3- Compactar\n4- Sair\n");
         scanf(" %c", &escolha);
-        switch (escolha)
-        {
-        case '1':
-        {
+        switch (escolha){
+        case '1':{
             montaCampos(input1, output);
             break;
         }
-        case '2':
-        {
+        case '2':{
             removeReg(input2, output);
             break;
         }
-        case '3':
-        {
+        case '3':{
             break;
         }
         }
