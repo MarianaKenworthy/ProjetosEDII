@@ -3,8 +3,6 @@
 #include <string.h>
 
 /* to-do
-- arrumar a pilha de remoção (no arquivo cadastro.dat) (eu mesmo)
-- arrumar remoção (eu mesmo)
 - onde parou no arquivo cadastro, insere, e remove
 - first-fit do insere
 - compactação (quando tudo estiver pronto)
@@ -43,6 +41,20 @@ void pop (struct pilha **p, int *x){
     }
 }
 
+void montaCabecalho (FILE* output){
+    char tam;
+    char registro[4];
+    sprintf(registro, "**|");
+    //assim ficaria {3**|}, onde:
+    //*indica q é removido pra n ler em outros momentos, mas no caso é o cabeçalho dos removidos
+    //*indica q por enquanto nenhum foi removido, porém vai mudar pra distância do mais recentemente removido
+    //|indica o começo do arquivo de verdade, foi um jeito mais fácil de arrumar esse problema, vai ter q mudar algumas coisas
+    tam = strlen(registro);
+
+    fwrite(&tam, sizeof(char), 1, output);
+    fwrite(&registro, sizeof(char), tam, output);
+}
+
 void montaCampos (FILE* input, FILE*output){
     char tam;
     seg segurado; 
@@ -55,15 +67,15 @@ void montaCampos (FILE* input, FILE*output){
     fwrite(&registro, sizeof(char), tam, output);
 }
 
-void removeReg (FILE* input, FILE* output, struct pilha **offset, FILE* pilha){
+void removeReg (FILE* input, FILE* output, struct pilha **offset){//esse offset tá fazendo algo? (offset, pop, push, struct da pilha)
     char codigo[4], aux[4], verificaRemovido;
     fread(codigo, sizeof(char), 4, input); //le o codigo a ser removido
 
-    int contaDistancia = 0;
+    char contaDistancia = 4;
 
-    fseek(output, 0, 0);// garante que ele ta no começo, pode mudar essa parte de lugar depois
-    fread(aux, sizeof(char), 4, output);
-    fseek(output, 0, 0);
+    fseek(output, 4, 0);// garante que ele ta no começo (4 por conta do cabeçalho)
+    fread(&aux, sizeof(char), 4, output);
+    fseek(output, 4, 0);
 
     while((codigo[0]!=aux[1])||(codigo[1]!=aux[2])||(codigo[2]!=aux[3])){
         contaDistancia += aux[0] + 1;
@@ -75,19 +87,22 @@ void removeReg (FILE* input, FILE* output, struct pilha **offset, FILE* pilha){
     }
     //volta e coloca o asterisco: 37001 -> 37*01
     fseek(output, -3, SEEK_CUR);
-    if ((fread(&verificaRemovido, 1, 1, output)) == 2){
+    if ((fread(&verificaRemovido, 1, 1, output)) == 1){
         if (verificaRemovido == '*'){
             printf("\nEsse registro ja foi removido\n");
         }else{
-            fwrite('*', sizeof(char), 1, output);
+            fseek(output, -1, SEEK_CUR);
+            char asterisco = '*';
+            fwrite(&asterisco, sizeof(char), 1, output);
 
-            //coloca no arquivo da pilha de removidos o que acabou de ser removido:
-            //7637#
-            //onde 76 é a distância até o removido (int), 37 é o espaço que foi removido (char) (pra inserir depois nesse lugar) e # é pipeline
-            fwrite(&contaDistancia, sizeof(int), 1, pilha);
-            fwrite(&aux[0]+1, sizeof(char), 1, pilha);
-            fwrite('#', sizeof(char), 1, pilha);
-            fseek(pilha, 0, 0);
+            fseek(output, 2, 0);
+            char proximo;
+            fread(&proximo, sizeof(char), 1, output);
+            fseek(output, -1, SEEK_CUR);
+            fwrite(&contaDistancia, sizeof(char), 1, output);//no cabeçalho -> 2*87; proximo vai ser oq tava lá
+
+            fseek(output, contaDistancia+2, 0);//vai pra onde tava antes agora com o proximo feito
+            fwrite(&proximo, sizeof(char), 1, output);//coloca o próximo, se for asterisco é o último da pilha (primeiro q foi colocado)
         }
     }
 }
@@ -126,14 +141,10 @@ int main () {
     FILE* output = fopen("cadastro.dat", "r+b");
     if (!output)
     output = fopen("cadastro.dat", "w+b");
-
-    FILE* pilharemocao = fopen("pilha.bin", "r+b");
-    if (!pilharemocao)
-    pilharemocao = fopen("pilha.bin", "w+b");
+    montaCabecalho(output);
 
     FILE* input1 = fopen("insere.bin", "rb");
     FILE* input2 = fopen("remove.bin", "rb");
-    
 
     struct pilha *offset = NULL;
 
@@ -152,7 +163,7 @@ int main () {
 
             case '2':{
                 
-                removeReg(input2, output, &offset, pilharemocao);
+                removeReg(input2, output, &offset);
 
             break;
             }
@@ -163,7 +174,7 @@ int main () {
         }
 
     } while(escolha != '4');
-    
+
     fclose(input1);
     fclose(input2);
     fclose(output);
