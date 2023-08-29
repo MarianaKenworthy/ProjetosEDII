@@ -31,6 +31,22 @@ void montaCabecalho(FILE *output){
     fwrite(&registro, sizeof(char), tam, output);
 }
 
+void achaEspaco (FILE* output, char tam){
+    char ch;
+    fseek(output, 2, 0);
+
+    do {
+        fread(&ch, sizeof(char), 1, output);
+        fseek(output, ch, 0);
+
+        if(ch == '*'){
+            fseek(output,0, 2);
+            return;
+        }
+    } while(tam < ch);
+
+}
+
 void montaCampos(FILE *input, FILE *output){
     char tam;
     seg segurado;
@@ -38,10 +54,13 @@ void montaCampos(FILE *input, FILE *output){
     char registro[135];
     sprintf(registro, "%s#%s#%s#%s#", segurado.codigo, segurado.nome, segurado.seguradora, segurado.tipo);
     tam = strlen(registro);
+    achaEspaco(output, tam);
 
     fwrite(&tam, sizeof(char), 1, output);
     fwrite(&registro, sizeof(char), tam, output);
 }
+
+
 
 void removeReg(FILE *input, FILE *output){
     char codigo[4], aux[4], verificaRemovido;
