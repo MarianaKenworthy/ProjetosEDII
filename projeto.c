@@ -5,7 +5,7 @@
 
 /* To-do:
 - Compactação (quando tudo estiver pronto);
-- Deixar bonitinho (🏳‍🌈) - Ponteiro a mais;
+- Deixar bonitinho - Ponteiro a mais;
 */
 
 typedef struct segurado{
@@ -34,19 +34,25 @@ void montaCabecalho(FILE *output){
     }
 }
 
-void achaEspaco (FILE* output, char tam){
-    char ch;
-    fseek(output, 2, 0);
+bool achaEspaco (FILE* output, char tam){
+    char ch[3];
+    fseek(output, 0, 0);
+
+    fread(ch, sizeof(char), 3, output);
+     if(ch[2] == -1){
+            fseek(output,0, 2);
+            return false;
+    }
 
     do {
-        fread(&ch, sizeof(char), 1, output);
-        fseek(output, ch, 0);
+        
+        fseek(output, ch[2], 1);
+        fread(&ch, sizeof(char), 3, output);
+        
+    } while(tam > ch[0]);
+    fseek(output, -5, 1);
+    return true;
 
-        if(ch == -1){
-            fseek(output,0, 2);
-            return;
-        }
-    } while(tam < ch);
 }
 
 void montaCampos(FILE *input, FILE *output, FILE *cursor){
@@ -67,9 +73,10 @@ void montaCampos(FILE *input, FILE *output, FILE *cursor){
     char registro[135];
     sprintf(registro, "%s#%s#%s#%s#", segurado.codigo, segurado.nome, segurado.seguradora, segurado.tipo);
     tam = strlen(registro);
-    achaEspaco(output, tam);
+    if(!achaEspaco(output, tam))
+        fwrite(&tam, sizeof(char), 1, output);
 
-    fwrite(&tam, sizeof(char), 1, output);
+    
     fwrite(&registro, sizeof(char), tam, output);
 }
 
@@ -131,29 +138,32 @@ void compacta(FILE **output){
     // Também precisa mudar o tamanho dos registros naquele primeiro bit já que encurta eles
     fseek(*output, 4, 0);
     FILE *output2 = fopen("output2.dat", "w+b");
-    int contador = 0, i, j;
-    char ch, tam, leitura, buffer[sizeof(seg)];
+    int contador = 0, j;
+    char ch, tam, i, buffer[sizeof(seg)];
 
     montaCabecalho(output2);
     fread(&tam, sizeof(char), 1, *output);
-    for(i=0; fread(buffer, sizeof(char), tam, *output) != 0; i++){
-        if(buffer[0] != '*'){
-            if(buffer[i]=='#')
-                contador++;
+    while (fread(buffer, sizeof(char), tam, *output) != 0){
+        for (i=0; i<tam; i++){
+            if(buffer[0] != '*'){
+                if(buffer[i]=='#')
+                    contador++;
 
-            if(contador==4){
-                fwrite(buffer, sizeof(char), i, output2);
-                fseek(output, i-sizeof(seg), 1);
-                contador=0;
+                if(contador==4){
+                    fwrite(&i, sizeof(char), 1, output2);
+                    fwrite(buffer, sizeof(char), i+1, output2);
+                    fseek(*output, i-tam+1, 1);
+                    contador=0;
+                }
             }
         }
-
         fread(&tam, sizeof(char), 1, *output);
         i=0;
     }
     remove("cadastro.dat");
     rename("output2.dat", "cadastro.dat");
-    *output = fopen("cadastro.dat", "r+b");
+    fclose(*output);
+    (*output) = output2;
     fclose(output2);
     
     
@@ -185,6 +195,7 @@ int main(){
             break;
         }
         case '3':{
+            compacta(&output);
             break;
         }
         }
@@ -193,4 +204,5 @@ int main(){
     fclose(input1);
     fclose(input2);
     fclose(output);
+    fclose(cursor);
 }
