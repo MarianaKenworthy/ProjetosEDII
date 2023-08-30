@@ -5,7 +5,6 @@
 
 /* To-do:
 - Onde parou no arquivo cadastro, insere, e remove;
-- First-fit do insere;
 - Compactação (quando tudo estiver pronto);
 - Deixar bonitinho (🏳‍🌈) - Ponteiro a mais;
 */
@@ -21,12 +20,11 @@ void montaCabecalho(FILE *output){
     char tam;
     char registro[4];
     sprintf(registro, "**|");
-    // Assim ficaria {3**|}, onde:
-    // '*' Indica que é removido para não ler em outros momentos, mas no caso é o cabeçalho dos removidos
-    // '*' Indica que por enquanto nenhum foi removido, porém vai mudar para a distância do mais recentemente removido
-    // '|' Indica o começo do arquivo de verdade, foi um jeito mais fácil de arrumar esse problema, levar isso em conta nas funções
-    tam = strlen(registro);
-
+ /* Assim ficaria {3**|}, onde:
+    '*' Indica que é removido para não ler em outros momentos, mas no caso é o cabeçalho dos removidos
+    '*' Indica que por enquanto nenhum foi removido, porém vai mudar para a distância do mais recentemente removido
+     '|' Indica o começo do arquivo de verdade, foi um jeito mais fácil de arrumar esse problema, levar isso em conta nas funções*/
+    tam = strlen(registro); 
     fwrite(&tam, sizeof(char), 1, output);
     fwrite(&registro, sizeof(char), tam, output);
 }
@@ -44,7 +42,6 @@ void achaEspaco (FILE* output, char tam){
             return;
         }
     } while(tam < ch);
-
 }
 
 void montaCampos(FILE *input, FILE *output){
@@ -59,8 +56,6 @@ void montaCampos(FILE *input, FILE *output){
     fwrite(&tam, sizeof(char), 1, output);
     fwrite(&registro, sizeof(char), tam, output);
 }
-
-
 
 void removeReg(FILE *input, FILE *output){
     char codigo[4], aux[4], verificaRemovido;
@@ -80,7 +75,7 @@ void removeReg(FILE *input, FILE *output){
 
     while ((codigo[0] != aux[1]) || (codigo[1] != aux[2]) || (codigo[2] != aux[3])){
         contaDistancia += aux[0] + 1;
-        fseek(output, aux[0] + 1, SEEK_CUR); // Vai para o próximo código em cadastro.dat
+        fseek(output, aux[0] +1, SEEK_CUR); // Vai para o próximo código em cadastro.dat
         if (fread(aux, sizeof(char), 4, output) == 0){
             printf("\nCodigo nao encontrado\n");
             return;
@@ -107,32 +102,36 @@ void removeReg(FILE *input, FILE *output){
     fwrite(&proximo, sizeof(char), 1, output); // Coloca o próximo da pilha, se for asterisco é o último (primeiro que foi colocado)
 }
 
-void compacta(FILE *output){
-    // Precisa lembrar de zerar a pilha aqui mas como ainda não tem pilha não fiz
+void compacta(FILE **output){
     // Também precisa mudar o tamanho dos registros naquele primeiro bit já que encurta eles
-    fseek(output, 0, 0);
-    FILE *output2 = output;
-    int contador = 0, i;
-    char ch, proximo, leitura, buffer[sizeof(seg)];
+    fseek(*output, 4, 0);
+    FILE *output2 = fopen("output2.dat", "w+b");
+    int contador = 0, i, j;
+    char ch, tam, leitura, buffer[sizeof(seg)];
 
-    while (fread(&ch, sizeof(char), 1, output) != 0){
-        if (contador == 0)
-            proximo = ch;
+    montaCabecalho(output2);
+    fread(&tam, sizeof(char), 1, *output);
+    for(i=0; fread(buffer, sizeof(char), tam, *output) != 0; i++){
+        if(buffer[0] != '*'){
+            if(buffer[i]=='#')
+                contador++;
 
-        if (ch = '#')
-            contador++;
-
-        if (contador == 4){
-            fseek(output2, proximo, 1);
-            fread(&leitura, sizeof(char), 1, output2);
-            fread(buffer, sizeof(char), leitura, output2);
-
-            fwrite(&leitura, sizeof(char), 1, output);
-            fwrite(buffer, sizeof(char), leitura, output);
-            // fseek(output, tamanho atualizado, SEEK_CUR);
-            contador = 0;
+            if(contador==4){
+                fwrite(buffer, sizeof(char), i, output2);
+                fseek(output, i-sizeof(seg), 1);
+                contador=0;
+            }
         }
+
+        fread(&tam, sizeof(char), 1, *output);
+        i=0;
     }
+    remove("cadastro.dat");
+    rename("output2.dat", "cadastro.dat");
+    *output = fopen("cadastro.dat", "r+b");
+    fclose(output2);
+    
+    
 }
 
 int main(){
