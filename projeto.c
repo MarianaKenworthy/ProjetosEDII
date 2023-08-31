@@ -3,19 +3,16 @@
 #include <stdbool.h>
 #include <string.h>
 
-/* To-do:
-- Compactação (quando tudo estiver pronto);
-- Deixar bonitinho - Ponteiro a mais;
-*/
-
-typedef struct segurado{
+typedef struct segurado
+{
     char codigo[4];
     char nome[50];
     char seguradora[50];
     char tipo[30];
 } seg;
 
-void montaCabecalho(FILE *output){
+void montaCabecalho(FILE *output)
+{
     char tam;
     char registro[3] = {'*', -1, '|'};
     /* Assim ficaria {3*-1|}, onde:
@@ -27,105 +24,135 @@ void montaCabecalho(FILE *output){
     char checarSeExiste;
     fseek(output, 3, 0);
     fread(&checarSeExiste, sizeof(char), 1, output);
-    if(checarSeExiste != '|'){
+    if (checarSeExiste != '|')
+    {
         fseek(output, 0, 0);
         fwrite(&tam, sizeof(char), 1, output);
         fwrite(&registro, sizeof(char), tam, output);
     }
 }
 
-bool achaEspaco (FILE* output, char tam){
-    char ch[3];
+bool achaEspaco(FILE *output, char tam)
+{
+    char ch[3], posAtual = -1, posFinal, posAnterior = -1;
     fseek(output, 0, 0);
 
     fread(ch, sizeof(char), 3, output);
-     if(ch[2] == -1){
-            fseek(output,0, 2);
-            return false;
+    if (ch[2] == -1)
+    {
+        // Caso não tenha nenhuma seguradora removida
+        fseek(output, 0, 2);
+        return false;
     }
 
-    do {
-
-        fseek(output, ch[2], 1);
+    do
+    {
+        // Tudo isso aqui é para guardar as posições e arrumar a pilha de remoção ao inserir
+        // 3*2| ; 3*-1 ; 3*3 ; 3*1   (ao inserir no lugar do terceiro)
+        // 3*2| ; 3*-1 ; 3*1 ; ...   (onde 3 é os bytes, * mostra que estão removidos e o último o próximo da pilha de remoção)
+        posAnterior = posAtual;
+        posAtual = ch[2];
+        fseek(output, ch[2], 0);
         fread(&ch, sizeof(char), 3, output);
-        
-    } while(tam > ch[0]);
+        posFinal = ch[2];
+    } while (tam > ch[0]);
 
-    fseek(output, -5, 1);
-
+    fseek(output, posAnterior + 3, 0);
+    fwrite(&posFinal, sizeof(char), 1, output);
+    fseek(output, posAtual + 1, 0); // Deixa o cursor exatamente no local para inserir
     return true;
 }
 
-void montaCampos(FILE *input, FILE *output, FILE *cursor){
+void montaCampos(FILE *input, FILE *output, FILE *cursor)
+{
     char tam, segInicialInsere;
     seg segurado;
 
     fseek(cursor, 0, 0);
-    if (fread(&segInicialInsere, sizeof(char), 1, cursor) == 0){
+    if (fread(&segInicialInsere, sizeof(char), 1, cursor) == 0)
+    {
+        // Checa se o cursor externo de inserção existe
         segInicialInsere = 0;
     }
-    fseek(input, segInicialInsere * sizeof(seg), 0);
-    if(fread(&segurado, sizeof(seg), 1, input) == 0){
+    fseek(input, segInicialInsere * sizeof(seg), 0); // Coloca o cursor no lugar onde parou da última vez (se houve)
+    if (fread(&segurado, sizeof(seg), 1, input) == 0)
+    {
         printf("Nao ha mais seguradoras no arquivo de insercao.");
         return;
     }
 
     segInicialInsere += 1;
     fseek(cursor, 0, 0);
-    fwrite(&segInicialInsere, sizeof(char), 1, cursor);
+    fwrite(&segInicialInsere, sizeof(char), 1, cursor); // Coloca o cursor externo de inserção novo no arquivo dos cursores
 
     char registro[135];
     sprintf(registro, "%s#%s#%s#%s#", segurado.codigo, segurado.nome, segurado.seguradora, segurado.tipo);
     tam = strlen(registro);
-    if(!achaEspaco(output, tam))
-        fwrite(&tam, sizeof(char), 1, output);
-
+    if (!achaEspaco(output, tam))
+    {
+        fseek(output, 0, 2);                   // Se não houve espaço sobrando, coloca no final
+        fwrite(&tam, sizeof(char), 1, output); // Se não achou espaço, coloca o tamanho do segurado
+    }
+    // Caso contrário, somente o segurado, assim o tamanho em bytes continua o tamanho original, com o lixo
     fwrite(&registro, sizeof(char), tam, output);
 }
 
-void removeReg(FILE *input, FILE *output, FILE *cursor){
+void removeReg(FILE *input, FILE *output, FILE *cursor)
+{
     char codigo[4], aux[4], verificaRemovido, segInicialRemove;
-    fseek(cursor, 1, 0);
-    if (fread(&segInicialRemove, sizeof(char), 1, cursor) == 0){
+
+    fseek(cursor, 1, 0); // fseek(cursor, 0, 0) é para o cursor de inserção
+    if (fread(&segInicialRemove, sizeof(char), 1, cursor) == 0)
+    {
+        // Checa se o cursor externo de remoção existe
         segInicialRemove = 0;
     }
+
     fseek(input, segInicialRemove * 4, 0); // Cada código no remove.bin tem tamanho 4 (002.)
-    if(fread(codigo, sizeof(char), 4, input) == 0){
+    if (fread(codigo, sizeof(char), 4, input) == 0)
+    {
         printf("Nao ha mais seguradoras no arquivo de remocao.");
         return;
     } // Lê o codigo a ser removido do remove.bin
 
     segInicialRemove += 1;
-    fseek(cursor, 1, 0); // O fseek(cursor, 0, 0) é para o insere.bin
-    fwrite(&segInicialRemove, sizeof(char), 1, cursor);
+    fseek(cursor, 1, 0);
+    fwrite(&segInicialRemove, sizeof(char), 1, cursor); // Coloca o cursor externo de remoção novo no arquivo dos cursores
 
-    char contaDistancia = 4;
+    char contaDistancia = 4; // Começa no 4 por conta do cabeçalho
 
-    fseek(output, 4, 0);                  // Garante que está no começo (4 por conta do cabeçalho)
+    fseek(output, 4, 0);                  // Garante que está no começo
     fread(&aux, sizeof(char), 4, output); // Lê o código em cadastro.dat, para comparar com o remove.bin
 
     fseek(output, 4, 0);
     bool primeiroReg = false;
-    if ((codigo[0] == aux[1]) && (codigo[1] == aux[2]) && (codigo[2] == aux[3])){
+    // Checagem para o caso específico de a primeira checagem der certo, ou seja:
+    // codigo[4] = 001. | aux[4] = B001 (B é o tamanho em bytes do segurado)
+    if ((codigo[0] == aux[1]) && (codigo[1] == aux[2]) && (codigo[2] == aux[3]))
+    {
         primeiroReg = true;
         fseek(output, 1, SEEK_CUR);
     }
 
-    while ((codigo[0] != aux[1]) || (codigo[1] != aux[2]) || (codigo[2] != aux[3])){
+    while ((codigo[0] != aux[1]) || (codigo[1] != aux[2]) || (codigo[2] != aux[3]))
+    {
         contaDistancia += aux[0] + 1;
-        fseek(output, aux[0] +1, SEEK_CUR); // Vai para o próximo código em cadastro.dat
-        if (fread(aux, sizeof(char), 4, output) == 0){
+        fseek(output, aux[0] + 1, SEEK_CUR); // Vai para o próximo código em cadastro.dat
+        if (fread(aux, sizeof(char), 4, output) == 0)
+        {
             printf("\nCodigo nao encontrado\n");
             return;
         }
-        else{
+        else
+        {
             if ((codigo[0] != aux[1]) || (codigo[1] != aux[2]) || (codigo[2] != aux[3]))
                 fseek(output, -4, SEEK_CUR);
+            // if para voltar o cursor, pois leu 4 a mais no fread em cima
         }
     }
 
-    if (!primeiroReg)
-        fseek(output, -3, SEEK_CUR); // Assim que achar, volta e coloca o asterisco: 37001 -> 37*01
+    if (!primeiroReg)                // Assim que achar, volta e coloca o asterisco: 37001 -> 37*01
+        fseek(output, -3, SEEK_CUR); // Booleano ali pois naquele caso não entra no fread do while, para ter que voltar 3
     char asterisco = '*';
     fwrite(&asterisco, sizeof(char), 1, output);
 
@@ -140,41 +167,48 @@ void removeReg(FILE *input, FILE *output, FILE *cursor){
     fwrite(&proximo, sizeof(char), 1, output); // Coloca o próximo da pilha, se for -1 é o último (primeiro que foi colocado)
 }
 
-void compacta(FILE **output){
-    // Também precisa mudar o tamanho dos registros naquele primeiro bit já que encurta eles
-    fseek(*output, 4, 0);
+void compacta(FILE **output)
+{
+    // Para compactar, criamos outro arquivo só com as partes que são necessárias, que toma o lugar do original, removendo fragmentações
+    fseek(*output, 4, 0); // 4 por conta do tamanho do cabeçalho
     FILE *output2 = fopen("output2.dat", "w+b");
-    int contador = 0, j;
+    int contador = 0;
     char ch, tam, i, buffer[sizeof(seg)];
 
-    montaCabecalho(output2);
+    montaCabecalho(output2); // Cabeçalho no arquivo novo, do mesmo método que é feito originalmente
     fread(&tam, sizeof(char), 1, *output);
-    while (fread(buffer, sizeof(char), tam, *output) != 0){
-        for (i=0; i<tam; i++){
-            if(buffer[0] != '*'){
-                if(buffer[i]=='#')
+    while (fread(buffer, sizeof(char), tam, *output) != 0)
+    {
+        if (buffer[3] != '#') // Redundância com o break abaixo, somente como uma rede de segurança caso acontece um bug
+            break;
+        for (i = 0; i < tam; i++)
+        {
+            if (buffer[0] != '*') // Se foi removido, não entra no arquivo novo
+            {
+                if (buffer[i] == '#') // Conta as '#' para arrumar a fragmentação
                     contador++;
 
-                if(contador==4){
-                    fwrite(&i, sizeof(char), 1, output2);
-                    fwrite(buffer, sizeof(char), i+1, output2);
-                    fseek(*output, i-tam+1, 1);
-                    contador=0;
+                if (contador == 4)
+                {
+                    i++;
+                    fwrite(&i, sizeof(char), 1, output2);     // Escreve o quanto leu, se houve fragmentação será menor que "tam"
+                    fwrite(buffer, sizeof(char), i, output2); // Escreve o segurado
+                    contador = 0;
+                    break; // Feito para não ler o lixo
                 }
             }
         }
-        fread(&tam, sizeof(char), 1, *output);
-        i=0;
+        fread(&tam, sizeof(char), 1, *output); // Pega o tamanho do próximo segurado em cadastro.dat
+        i = 0;
     }
-    remove("cadastro.dat");
-    rename("output2.dat", "cadastro.dat");
     fclose(*output);
     fclose(output2);
-    
-    
+    remove("cadastro.dat");
+    rename("output2.dat", "cadastro.dat"); // Assim apaga o cadastro antigo e um novo compactado toma seu lugar
 }
 
-int main(){
+int main()
+{
     FILE *output = fopen("cadastro.dat", "r+b");
     if (!output)
         output = fopen("cadastro.dat", "w+b");
@@ -187,19 +221,24 @@ int main(){
         cursor = fopen("cursorauxiliar.dat", "w+b");
 
     char escolha;
-    do{
+    do
+    {
         printf("\n---------------------------\n\nO que deseja fazer?\n\n1- Inserir\n2- Remover\n3- Compactar\n4- Sair\n");
         scanf(" %c", &escolha);
-        switch (escolha){
-        case '1':{
+        switch (escolha)
+        {
+        case '1':
+        {
             montaCampos(input1, output, cursor);
             break;
         }
-        case '2':{
+        case '2':
+        {
             removeReg(input2, output, cursor);
             break;
         }
-        case '3':{
+        case '3':
+        {
             compacta(&output);
             output = fopen("cadastro.dat", "r+b");
             break;
