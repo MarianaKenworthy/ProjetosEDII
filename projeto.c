@@ -45,14 +45,15 @@ bool achaEspaco (FILE* output, char tam){
     }
 
     do {
-        
+
         fseek(output, ch[2], 1);
         fread(&ch, sizeof(char), 3, output);
         
     } while(tam > ch[0]);
-    fseek(output, -5, 1);
-    return true;
 
+    fseek(output, -5, 1);
+
+    return true;
 }
 
 void montaCampos(FILE *input, FILE *output, FILE *cursor){
@@ -64,7 +65,10 @@ void montaCampos(FILE *input, FILE *output, FILE *cursor){
         segInicialInsere = 0;
     }
     fseek(input, segInicialInsere * sizeof(seg), 0);
-    fread(&segurado, sizeof(seg), 1, input);
+    if(fread(&segurado, sizeof(seg), 1, input) == 0){
+        printf("Nao ha mais seguradoras no arquivo de insercao.");
+        return;
+    }
 
     segInicialInsere += 1;
     fseek(cursor, 0, 0);
@@ -76,7 +80,6 @@ void montaCampos(FILE *input, FILE *output, FILE *cursor){
     if(!achaEspaco(output, tam))
         fwrite(&tam, sizeof(char), 1, output);
 
-    
     fwrite(&registro, sizeof(char), tam, output);
 }
 
@@ -87,7 +90,10 @@ void removeReg(FILE *input, FILE *output, FILE *cursor){
         segInicialRemove = 0;
     }
     fseek(input, segInicialRemove * 4, 0); // Cada código no remove.bin tem tamanho 4 (002.)
-    fread(codigo, sizeof(char), 4, input); // Lê o codigo a ser removido do remove.bin
+    if(fread(codigo, sizeof(char), 4, input) == 0){
+        printf("Nao ha mais seguradoras no arquivo de remocao.");
+        return;
+    } // Lê o codigo a ser removido do remove.bin
 
     segInicialRemove += 1;
     fseek(cursor, 1, 0); // O fseek(cursor, 0, 0) é para o insere.bin
@@ -163,7 +169,6 @@ void compacta(FILE **output){
     remove("cadastro.dat");
     rename("output2.dat", "cadastro.dat");
     fclose(*output);
-    (*output) = output2;
     fclose(output2);
     
     
@@ -196,6 +201,7 @@ int main(){
         }
         case '3':{
             compacta(&output);
+            output = fopen("cadastro.dat", "r+b");
             break;
         }
         }
