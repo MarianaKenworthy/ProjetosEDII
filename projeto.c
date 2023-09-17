@@ -14,31 +14,40 @@ typedef struct segurado
 void montaCabecalho(FILE *output)
 {
     char tam;
-    char registro[3] = {'*', -1, '|'};
+    char asterisco = '*';
+    int proxReg = -1;
+    char pipeline = '|';
     /* Assim ficaria {3*-1|}, onde:
      * '*' Indica que é removido para não ler em outros momentos, mas no caso é o cabeçalho dos removidos
      * '-1' Indica que por enquanto nenhum foi removido, porém vai mudar para a distância do mais recentemente removido
      * '|' Indica o começo do arquivo de verdade, foi um jeito mais fácil de arrumar esse problema, levar isso em conta nas funções
      */
-    tam = strlen(registro);
+    tam = sizeof(char) * 2 + sizeof(int);
     char checarSeExiste;
-    fseek(output, 3, 0);
+    fseek(output, 6, 0);
     fread(&checarSeExiste, sizeof(char), 1, output);
     if (checarSeExiste != '|')
     {
         fseek(output, 0, 0);
         fwrite(&tam, sizeof(char), 1, output);
-        fwrite(&registro, sizeof(char), tam, output);
+        fwrite(&asterisco, sizeof(char), 1, output);
+        fwrite(&proxReg, sizeof(int), 1, output);
+        fwrite(&pipeline, sizeof(char), 1, output);
     }
 }
 
 bool achaEspaco(FILE *output, char tam)
 {
-    char ch[3], posAtual = -1, posFinal, posAnterior = -1;
+    char tamanhoRegistroAtual, asterisco, pipe;
+    int proximoReg;
+    int posAtual = -1, posFinal, posAnterior = -1;
     fseek(output, 0, 0);
 
-    fread(ch, sizeof(char), 3, output);
-    if (ch[2] == -1)
+    fread(&tamanhoRegistroAtual, sizeof(char), 1, output);
+    fread(&asterisco, sizeof(char), 1, output);
+    fread(&proximoReg, sizeof(int), 1, output);
+    fread(&pipe, sizeof(char), 1, output);
+    if (proximoReg == -1)
     {
         // Caso não tenha nenhuma seguradora removida
         fseek(output, 0, 2);
@@ -51,14 +60,26 @@ bool achaEspaco(FILE *output, char tam)
         // 3*2| ; 3*-1 ; 3*3 ; 3*1   (ao inserir no lugar do terceiro)
         // 3*2| ; 3*-1 ; 3*1 ; ...   (onde 3 é os bytes, * mostra que estão removidos e o último o próximo da pilha de remoção)
         posAnterior = posAtual;
-        posAtual = ch[2];
-        fseek(output, ch[2], 0);
-        fread(&ch, sizeof(char), 3, output);
-        posFinal = ch[2];
-    } while (tam > ch[0]);
+        posAtual = proximoReg;
+        if (posAtual == -1)
+            return false;
+        fseek(output, proximoReg, 0);
+        if (fread(&tamanhoRegistroAtual, sizeof(char), 1, output) == 0)
+            return false;
+        if (fread(&asterisco, sizeof(char), 1, output) == 0)
+            return false;
+        if (fread(&proximoReg, sizeof(int), 1, output) == 0)
+            return false;
+        if (fread(&pipe, sizeof(char), 1, output) == 0)
+            return false;
+        posFinal = proximoReg;
+    } while (tam > tamanhoRegistroAtual);
 
-    fseek(output, posAnterior + 3, 0);
-    fwrite(&posFinal, sizeof(char), 1, output);
+    if (posAnterior == -1)
+        fseek(output, posAnterior + 3, 0);
+    else
+        fseek(output, posAnterior + 2, 0);
+    fwrite(&posFinal, sizeof(int), 1, output);
     fseek(output, posAtual + 1, 0); // Deixa o cursor exatamente no local para inserir
     return true;
 }
@@ -119,12 +140,12 @@ void removeReg(FILE *input, FILE *output, FILE *cursor)
     fseek(cursor, 1, 0);
     fwrite(&segInicialRemove, sizeof(char), 1, cursor); // Coloca o cursor externo de remoção novo no arquivo dos cursores
 
-    char contaDistancia = 4; // Começa no 4 por conta do cabeçalho
+    int contaDistancia = 7; // Começa no 7 por conta do cabeçalho
 
-    fseek(output, 4, 0);                  // Garante que está no começo
+    fseek(output, 7, 0);                  // Garante que está no começo
     fread(&aux, sizeof(char), 4, output); // Lê o código em cadastro.dat, para comparar com o remove.bin
 
-    fseek(output, 4, 0);
+    fseek(output, 7, 0);
     bool primeiroReg = false;
     // Checagem para o caso específico de a primeira checagem der certo, ou seja:
     // codigo[4] = 001. | aux[4] = B001 (B é o tamanho em bytes do segurado)
@@ -157,20 +178,20 @@ void removeReg(FILE *input, FILE *output, FILE *cursor)
     fwrite(&asterisco, sizeof(char), 1, output);
 
     fseek(output, 2, 0); // Salva o próximo da pilha ('-1' se não tiver) em proximo
-    char proximo;
-    fread(&proximo, sizeof(char), 1, output);
+    int proximo;
+    fread(&proximo, sizeof(int), 1, output);
 
-    fseek(output, -1, SEEK_CUR);
-    fwrite(&contaDistancia, sizeof(char), 1, output); // Escreve a distância do mais recentemente removido no cabeçalho
+    fseek(output, -4, SEEK_CUR);
+    fwrite(&contaDistancia, sizeof(int), 1, output); // Escreve a distância do mais recentemente removido no cabeçalho
 
-    fseek(output, contaDistancia + 2, 0);      // Vai para o mais recentemente removido
-    fwrite(&proximo, sizeof(char), 1, output); // Coloca o próximo da pilha, se for -1 é o último (primeiro que foi colocado)
+    fseek(output, contaDistancia + 2, 0);     // Vai para o mais recentemente removido
+    fwrite(&proximo, sizeof(int), 1, output); // Coloca o próximo da pilha, se for -1 é o último (primeiro que foi colocado)
 }
 
 void compacta(FILE **output)
 {
     // Para compactar, criamos outro arquivo só com as partes que são necessárias, que toma o lugar do original, removendo fragmentações
-    fseek(*output, 4, 0); // 4 por conta do tamanho do cabeçalho
+    fseek(*output, 7, 0); // 4 por conta do tamanho do cabeçalho
     FILE *output2 = fopen("output2.dat", "w+b");
     int contador = 0;
     char ch, tam, i, buffer[sizeof(seg)];
@@ -179,8 +200,6 @@ void compacta(FILE **output)
     fread(&tam, sizeof(char), 1, *output);
     while (fread(buffer, sizeof(char), tam, *output) != 0)
     {
-        if (buffer[3] != '#') // Redundância com o break abaixo, somente como uma rede de segurança caso acontece um bug
-            break;
         for (i = 0; i < tam; i++)
         {
             if (buffer[0] != '*') // Se foi removido, não entra no arquivo novo
@@ -197,6 +216,8 @@ void compacta(FILE **output)
                     break; // Feito para não ler o lixo
                 }
             }
+            else
+                break;
         }
         fread(&tam, sizeof(char), 1, *output); // Pega o tamanho do próximo segurado em cadastro.dat
         i = 0;
