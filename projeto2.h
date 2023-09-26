@@ -1,3 +1,8 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <string.h>
+
 typedef struct segurado {
     char codigo[4];
     char nome[50];
@@ -8,9 +13,10 @@ typedef struct segurado {
 typedef struct indice{
     char chave[4];
     int offset;
+    int tam;
 } ind;
 
 
-void insere (FILE* input, FILE* output, FILE* indice);
-void buscaP;
-void buscaS;
+void insere (FILE* input, FILE* output, FILE* indice, FILE* cursor);
+void buscaP (FILE* input, FILE* output, FILE* indice, FILE* cursor);
+void buscaS (FILE* input, FILE* output, FILE* indice, FILE* cursor);
