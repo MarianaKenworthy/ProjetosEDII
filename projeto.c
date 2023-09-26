@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <string.h>
+#include <string.h> 
 #include "Projeto1/projeto1.h"
 
 int main()
@@ -20,25 +20,23 @@ int main()
     char escolha;
     do
     {
-        printf("\n---------------------------\n\nO que deseja fazer?\n\n1- Inserir\n2- Remover\n3- Compactar\n4- Sair\n");
+        printf("\n---------------------------\n\nO que deseja fazer?\n\n1- Inserir\n2- Busca Primaria\n3- Busca Secundaria\n4- Sair\n");
         scanf(" %c", &escolha);
         switch (escolha)
         {
         case '1':
         {
-            montaCampos(input1, output, cursor);
+
             break;
         }
         case '2':
         {
-            removeReg(input2, output, cursor);
+
             break;
         }
         case '3':
         {
-            compacta(&output);
-            output = fopen("cadastro.dat", "r+b");
-            break;
+
         }
         }
     } while (escolha != '4');
