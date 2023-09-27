@@ -14,9 +14,13 @@ int main()
     if (!indice)
         indice = fopen("indice.bin", "w+b");
 
-    FILE *secundario = fopen("indice.bin", "r+b");
-    if (!secundario)
-        secundario = fopen("indice.bin", "w+b");
+    FILE *secundario1 = fopen("secundario1.bin", "r+b");
+    if (!secundario1)
+        secundario1 = fopen("secundario1.bin", "w+b");
+
+    FILE *secundario2 = fopen("secundario2.bin", "r+b");
+    if (!secundario2)
+        secundario2 = fopen("secundario2.bin", "w+b");
 
     FILE *cursor = fopen("cursorauxiliar.dat", "r+b");
     if (!cursor)
@@ -32,7 +36,7 @@ int main()
         {
         case '1':
         {
-            insere(input1, output, indice, cursor);
+            insere(input1, output, indice, cursor, secundario1, secundario2);
             break;
         }
         case '2':
@@ -42,7 +46,7 @@ int main()
         }
         case '3':
         {
-            buscaS(input2, output, indice, cursor);
+            buscaS(input3, output, secundario1, secundario2, indice, cursor);
             break;
         }
         }
