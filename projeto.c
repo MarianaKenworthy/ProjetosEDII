@@ -22,6 +22,7 @@ int main()
     if (!cursor)
         cursor = fopen("cursorauxiliar.dat", "w+b");
 
+    montarCabecalho(indice, output);
     char escolha;
     do
     {

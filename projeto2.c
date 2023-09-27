@@ -1,20 +1,29 @@
 #include "projeto2.h"
 
-void insere (FILE *input, FILE *output, FILE *indice, FILE *cursor, FILE* secundario1, FILE* secundario2) {
-    char tam, registro[135], cursorInsere, auxChar;
-    int auxOffsetAnterior, auxTamAnterior;
+void insere(FILE *input, FILE *output, FILE *indice, FILE *cursor, FILE *secundario1, FILE *secundario2)
+{
+    int aux = 1;
+    fseek(indice, 0, 0);
+    fwrite(&aux, sizeof(char), 1, indice);
+    char tam, registro[135], cursorInsere, auxChar, auxTamAnterior;
+    int auxOffsetAnterior;
     seg segurado;
     ind novo;
 
     fseek(cursor, 0, 0);
-    if (fread(&cursorInsere, sizeof(char), 1, cursor) == 0) {
+    if (fread(&cursorInsere, sizeof(char), 1, cursor) == 0)
+    {
         // Checa se o cursor externo de inserção existe
         cursorInsere = 0;
     }
     fseek(input, cursorInsere * sizeof(seg), 0); // Coloca o cursor no lugar onde parou da última vez (se houve)
 
-    if (fread(&segurado, sizeof(seg), 1, input) == 0) {
+    if (fread(&segurado, sizeof(seg), 1, input) == 0)
+    {
         printf("Nao ha mais seguradoras no arquivo de insercao.");
+        aux = 0;
+        fseek(indice, 0, 0);
+        fwrite(&aux, sizeof(int), 1, indice);
         return;
     }
 
@@ -24,60 +33,67 @@ void insere (FILE *input, FILE *output, FILE *indice, FILE *cursor, FILE* secund
 
     sprintf(registro, "%s#%s#%s#%s#", segurado.codigo, segurado.nome, segurado.seguradora, segurado.tipo);
     tam = strlen(registro);
-    novo.tam = tam + 1;
 
-
-    //anota o registro no arquivo principal
+    // anota o registro no arquivo principal
     fseek(output, 0, 2);
     fwrite(&tam, sizeof(char), 1, output);
     fwrite(&registro, sizeof(char), tam, output);
-    
-    //anota indice prim
+
+    // anota indice prim
     sprintf(novo.chave, "%s", segurado.codigo);
-    fseek(indice, 0, 0);
+    fseek(indice, sizeof(int), 0);
 
     if (fread(&auxChar, sizeof(char), 1, indice) == 0)
         novo.offset = 0;
-    else {
-        fseek(indice, -(2 * sizeof(int)), 2);
+    else
+    {
+        fseek(indice, -sizeof(int), 2);
         fread(&auxOffsetAnterior, sizeof(int), 1, indice);
-        fread(&auxTamAnterior, sizeof(int), 1, indice);
-        novo.offset = auxOffsetAnterior + auxTamAnterior;
+        fseek(output, auxOffsetAnterior, 0);
+        fread(&auxTamAnterior, sizeof(char), 1, output);
+        novo.offset = auxOffsetAnterior + auxTamAnterior + 1;
     }
     fseek(indice, 0, 2);
     fwrite(&novo, sizeof(ind), 1, indice);
 
-    //anota secundario
-    
+    aux = 0;
+    fseek(indice, 0, 0);
+    fwrite(&aux, sizeof(int), 1, indice);
+
+    // anota secundario
+
     char string1[50], string2[50];
     int i, auxInt;
     bool flagcompara = 1;
     strcpy(string1, segurado.seguradora);
 
-    fseek(secundario1, 0, 0);  
-    //procura o nome da seguradora nas chaves secundarias
-    //deve dar pra reciclar isso aqui pra busca sec
-    for(i=0; fread(&auxChar, sizeof(char), 1, secundario1)!= 0; i++){
+    fseek(secundario1, 0, 0);
+    // procura o nome da seguradora nas chaves secundarias
+    // deve dar pra reciclar isso aqui pra busca sec
+    for (i = 0; fread(&auxChar, sizeof(char), 1, secundario1) != 0; i++)
+    {
 
-        if(auxChar == '#'){
+        if (auxChar == '#')
+        {
             string2[i] = '\0';
             flagcompara = strcmp(string1, string2);
 
-            if(flagcompara != 0){
-                i=0;
+            if (flagcompara != 0)
+            {
+                i = 0;
                 fseek(secundario1, 4, 1);
             }
-            else 
+            else
                 break;
         }
         else
             string2[i] = auxChar;
-      }  
-    
-    
+    }
+
     int posicao;
 
-    if(flagcompara == 0){ //se a seguradora ja existir
+    if (flagcompara == 0)
+    { // Se a seguradora já existir
 
         fread(&auxInt, sizeof(int), 1, &secundario1);
         fseek(secundario2, 0, 2);
@@ -86,8 +102,9 @@ void insere (FILE *input, FILE *output, FILE *indice, FILE *cursor, FILE* secund
         fwrite(&posicao, sizeof(int), 1, secundario1);
         fwrite(&novo.chave, sizeof(char), 4, secundario2);
         fwrite(&auxInt, sizeof(int), 1, secundario2);
-
-    } else {
+    }
+    else
+    {
 
         fwrite(&segurado.seguradora, sizeof(char), strlen(segurado.seguradora), secundario1);
         fwrite("#", sizeof(char), 1, secundario1);
@@ -98,7 +115,56 @@ void insere (FILE *input, FILE *output, FILE *indice, FILE *cursor, FILE* secund
         auxInt = -1;
         fwrite(&auxInt, sizeof(int), 1, secundario2);
     }
+}
 
+void montarCabecalho(FILE *indice, FILE *output)
+{
+    int aux = 0;
+    if (fread(&aux, sizeof(int), 1, indice) == 0)
+    {
+        aux = 0;
+        fseek(indice, 0, 0);
+        fwrite(&aux, sizeof(int), 1, indice);
+    }
+    else
+    {
+        if (aux == 1)
+        {
+            // Quer dizer que algo deu errado na inserção
+            fseek(output, 0, 0);
+            int contadorHashtag = 0, i = 0, offsetComeco = 0, tamanhoReg = 0;
+            char registro[135], j = 1;
+            bool acabou = false;
+            while (!acabou)
+            {
+                while (contadorHashtag != 4)
+                {
+                    if (fread(&registro[i], sizeof(char), 1, output) == 0)
+                    {
+                        acabou = true;
+                        break;
+                    }
+                    tamanhoReg++;
+                    if (registro[i] == '#')
+                        contadorHashtag++;
+                    i++;
+                }
+                contadorHashtag = 0;
+                i = 0;
+                // Salvar em indice registro[1...3] + . + offsetComeco:
+                fwrite(&registro[1], sizeof(char), 1, indice);
+                fwrite(&registro[2], sizeof(char), 1, indice);
+                fwrite(&registro[3], sizeof(char), 1, indice);
+                char aux = 0;
+                fwrite(&aux, sizeof(char), 1, indice);
+                fwrite(&offsetComeco, sizeof(int), 1, indice);
+                fwrite(&tamanhoReg, sizeof(int), 1, indice);
+
+                offsetComeco += tamanhoReg;
+                tamanhoReg = 0;
+            }
+        }
+    }
 }
 
 void buscaP(FILE *input, FILE *output, FILE *indice, FILE *cursor)
@@ -128,10 +194,11 @@ void buscaP(FILE *input, FILE *output, FILE *indice, FILE *cursor)
     imprime(output, indice, codigoBuscado);
 }
 
-void imprime(FILE*output, FILE* indice, char *codigoBuscado){
+void imprime(FILE *output, FILE *indice, char *codigoBuscado)
+{
     char codigoAtualIndice[4] = {-1, -1, -1, -1};
     int offsetAtualIndice;
-    fseek(indice, 0, 0);
+    fseek(indice, sizeof(int), 0);
     while (codigoAtualIndice[0] != codigoBuscado[0] || codigoAtualIndice[1] != codigoBuscado[1] || codigoAtualIndice[2] != codigoBuscado[2] || codigoAtualIndice[3] != codigoBuscado[3])
     {
         if (fread(&codigoAtualIndice, sizeof(char), 4, indice) == 0 || fread(&offsetAtualIndice, sizeof(int), 1, indice) == 0)
@@ -139,7 +206,6 @@ void imprime(FILE*output, FILE* indice, char *codigoBuscado){
             printf("O segurado nao foi encontrado.");
             return;
         }
-        fseek(indice, 4, 1);
     }
     // Ao sair do while, o offset do código está salvo em offsetAtualIndice, agora falta só printar
 
@@ -182,39 +248,44 @@ void imprime(FILE*output, FILE* indice, char *codigoBuscado){
     }
 }
 
-void buscaS(FILE *input, FILE *output, FILE *secundario1, FILE* secundario2, FILE* indice, FILE *cursor) {
-   char procura[50], auxChar, codigo[4];
-   char buffer[50];
-   int i, flagcompara, posicao;
+void buscaS(FILE *input, FILE *output, FILE *secundario1, FILE *secundario2, FILE *indice, FILE *cursor)
+{
+    char procura[50], auxChar, codigo[4];
+    char buffer[50];
+    int i, flagcompara, posicao;
 
-   fread(&procura, sizeof(char), 50, input);
+    fread(&procura, sizeof(char), 50, input);
 
-    fseek(secundario1, 0, 0); 
-     
-    //procura o nome da seguradora nas chaves secundarias
-    for(i=0; fread(&auxChar, sizeof(char), 1, secundario1)!= 0; i++){
+    fseek(secundario1, 0, 0);
 
-        if(auxChar == '#'){
+    // procura o nome da seguradora nas chaves secundarias
+    for (i = 0; fread(&auxChar, sizeof(char), 1, secundario1) != 0; i++)
+    {
+
+        if (auxChar == '#')
+        {
             buffer[i] = '\0';
             flagcompara = strcmp(procura, buffer);
 
-            if(flagcompara != 0){
-                i=0;
+            if (flagcompara != 0)
+            {
+                i = 0;
                 fseek(secundario1, 4, 1);
             }
-            else 
+            else
                 break;
         }
         else
             buffer[i] = auxChar;
-      }  
-    
-    if(flagcompara == 0){
+    }
+
+    if (flagcompara == 0)
+    {
         fread(&posicao, sizeof(int), 1, secundario1);
         fseek(secundario2, posicao, 0);
         fread(&codigo, sizeof(char), 4, secundario2);
         imprime(output, indice, codigo);
-    }  else 
-        printf("codigo não encontrado\n");
-
+    }
+    else
+        printf("\nCodigo nao encontrado\n");
 }
