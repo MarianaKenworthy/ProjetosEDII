@@ -17,6 +17,8 @@ typedef struct indice{
 } ind;
 
 
-void insere (FILE* input, FILE* output, FILE* indice, FILE* cursor);
+void insere (FILE *input, FILE *output, FILE *indice, FILE *cursor, FILE* secundario1, FILE* secundario2);
 void buscaP (FILE* input, FILE* output, FILE* indice, FILE* cursor);
-void buscaS (FILE* input, FILE* output, FILE* indice, FILE* cursor);
+void buscaS(FILE *input, FILE *output, FILE *secundario1, FILE* secundario2, FILE *cursor);
+void imprime(FILE*output, FILE* indice, char *codigoBuscado);
+

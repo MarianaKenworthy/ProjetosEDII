@@ -14,6 +14,10 @@ int main()
     if (!indice)
         indice = fopen("indice.bin", "w+b");
 
+    FILE *secundario = fopen("indice.bin", "r+b");
+    if (!secundario)
+        secundario = fopen("indice.bin", "w+b");
+
     FILE *cursor = fopen("cursorauxiliar.dat", "r+b");
     if (!cursor)
         cursor = fopen("cursorauxiliar.dat", "w+b");
