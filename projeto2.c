@@ -240,9 +240,14 @@ void buscaS (FILE *input, FILE *output, FILE *secundario1, FILE *secundario2, FI
 {
     char procura[50], auxChar, codigo[4];
     char buffer[50];
-    int i, flagcompara, posicao;
+    int i, flagcompara, posicao, poscursor;
 
+    fseek(cursor, 2, 0);
+    fread(&poscursor, sizeof(int), 1, cursor);
     fread(&procura, sizeof(char), 50, input);
+    poscursor = ftell(input);
+    fseek(cursor, 2, 0);
+    fwrite(&poscursor, sizeof(int), 1, cursor);
 
     fseek(secundario1, 0, 0);
 
