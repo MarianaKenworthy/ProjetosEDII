@@ -287,19 +287,26 @@ void imprime(FILE *output, FILE *indice, char *codigoBuscado)
 void buscaS(FILE *input, FILE *output, FILE *secundario1, FILE *secundario2, FILE *indice, FILE *cursor)
 {
     char procura[50], auxChar, codigo[4];
-    char buffer[50];
-    int i, flagcompara, posicao, poscursor;
+    char buffer[50], cursorBuscaSecundaria;
+    int i, flagcompara, posicao;
 
     fseek(cursor, 2, 0);
-    fread(&poscursor, sizeof(int), 1, cursor);
+    if (fread(&cursorBuscaSecundaria, sizeof(char), 1, cursor) == 0)
+    {
+        // Checa se o cursor externo de busca primária existe
+        cursorBuscaSecundaria = 0;
+    }
+    fseek(input, cursorBuscaSecundaria * 50, 0); // Coloca o cursor no lugar onde parou da última vez (se houve)
+
     if (fread(&procura, sizeof(char), 50, input) == 0)
     {
-        printf("Nao ha mais seguradoras no arquivo de busca secundaria.");
+        printf("Nao ha mais seguradoras no arquivo de busca primaria.");
         return;
     }
-    poscursor = ftell(input);
+
+    cursorBuscaSecundaria += 1;
     fseek(cursor, 2, 0);
-    fwrite(&poscursor, sizeof(int), 1, cursor);
+    fwrite(&cursorBuscaSecundaria, sizeof(char), 1, cursor); // Coloca o cursor externo de busca primária novo no arquivo dos cursores
 
     fseek(secundario1, 0, 0);
 
