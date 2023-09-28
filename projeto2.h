@@ -17,8 +17,16 @@ typedef struct indice
     int offset;
 } ind;
 
+typedef struct keysort
+{
+    char existe;
+    ind codigo;
+    int num;
+} key;
+
 void insere(FILE *input, FILE *output, FILE *indice, FILE *cursor, FILE *secundario1, FILE *secundario2);
 void montarCabecalho(FILE *indice, FILE *output);
+void keysort(FILE *indice);
 void buscaP(FILE *input, FILE *output, FILE *indice, FILE *cursor);
-void buscaS (FILE *input, FILE *output, FILE *secundario1, FILE *secundario2, FILE* indice, FILE* cursor);
+void buscaS(FILE *input, FILE *output, FILE *secundario1, FILE *secundario2, FILE *indice, FILE *cursor);
 void imprime(FILE *output, FILE *indice, char *codigoBuscado);
