@@ -244,7 +244,10 @@ void buscaS (FILE *input, FILE *output, FILE *secundario1, FILE *secundario2, FI
 
     fseek(cursor, 2, 0);
     fread(&poscursor, sizeof(int), 1, cursor);
-    fread(&procura, sizeof(char), 50, input);
+    if(fread(&procura, sizeof(char), 50, input) == 0){
+        printf("Nao ha mais seguradoras no arquivo de busca secundaria.");
+        return;
+    }
     poscursor = ftell(input);
     fseek(cursor, 2, 0);
     fwrite(&poscursor, sizeof(int), 1, cursor);
