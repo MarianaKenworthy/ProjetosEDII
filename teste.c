@@ -9,12 +9,11 @@ If node is out of room,
 
 /*TO DO
     - implemntar cabeçalho
-    - receber dados direto do documento (meio feito)
+    - receber dados direto do documento feito??????
     - percurso pra ler todos os dados
     - encontrar um especifico (busca)
     - conferir se o programa promove indice 2
     - conferir as mensagens que ela quer que imprima na insercao (tem q testar e conferir se condiz com o enunciado)*/
-
 
 
 
@@ -79,16 +78,15 @@ int receive_input(){ // colocar cursor aqui
 
      if (fread(&segurado, sizeof(seg), 1, infd) == 0){
         printf("Nao ha mais seguradoras no arquivo de insercao.");
+        fclose(infd);
+        fclose(cadastro);
         return ;
     }
 
+    int res = insert(ftell(cadastro), segurado.codigo, NULL, NULL); //conferir se é isso mesmo
 
-
-
-    int res = insert(ftell(cadastro), segurado.codigo, ?, ?);
-
-    fwrite(&segurado, 1, sizeof(seg), cadastro);
-
+    if(res)
+        fwrite(&segurado, 1, sizeof(seg), cadastro);
 
     fclose(infd);
     fclose(cadastro);
